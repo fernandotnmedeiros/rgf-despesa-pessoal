@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SICONFI · RGF Despesa com Pessoal</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="rgf.css">
+</head>
+<body>
+<header class="topbar">
+  
+  <h1>RGF · Despesa com Pessoal <span class="subtitle">Percentual da despesa total com pessoal sobre a RCL Ajustada, por poder e órgão (1º quad. 2024 a 2º quad. 2026)</span></h1>
+</header>
+
+<main>
+  <section class="controls">
+    <div class="field field-grow">
+      <label for="ente">Estado / DF</label>
+      <select id="ente"></select>
+    </div>
+    <div class="field field-action">
+      <span class="field-label-spacer" aria-hidden="true">&nbsp;</span>
+      <a id="exportar" class="btn" href="#" download>Exportar XLSX</a>
+    </div>
+  </section>
+
+  <section id="aviso" class="rgf-aviso" hidden></section>
+
+  <section id="resumo" class="info-card" hidden>
+    <div><strong id="resumo-titulo"></strong></div>
+    <div class="info-meta" id="resumo-meta"></div>
+  </section>
+
+  <section id="empty-state" class="empty-state">Carregando...</section>
+
+  <section id="tabela-wrap" class="table-wrap rgf-table" hidden>
+    <table>
+      <caption class="sr-only">Percentual da despesa total com pessoal sobre a RCL Ajustada por órgão e quadrimestre</caption>
+      <thead><tr id="tabela-head"></tr></thead>
+      <tbody id="tabela-body"></tbody>
+    </table>
+  </section>
+
+  <section id="graficos-wrap" class="rgf-graficos" hidden>
+    <h2 class="rgf-h2">Evolução do % por órgão</h2>
+    <p class="rgf-legenda">
+      <span class="leg-item"><span class="leg-line leg-serie"></span>% da DTP sobre a RCL Ajustada</span>
+      <span class="leg-item"><span class="leg-line leg-alerta"></span>Limite de alerta</span>
+      <span class="leg-item"><span class="leg-line leg-prudencial"></span>Limite prudencial</span>
+      <span class="leg-item"><span class="leg-line leg-maximo"></span>Limite máximo</span>
+    </p>
+    <div id="graficos" class="rgf-grid"></div>
+  </section>
+
+  <section class="rgf-notas">
+    <h2 class="rgf-h2">Notas</h2>
+    <p><strong>Fonte:</strong> Siconfi / Tesouro Nacional (API de dados abertos), dados extraídos em 15/10/2026. RGF Anexo 1 (Demonstrativo da Despesa com Pessoal). Cada quadrimestre considera os 12 meses encerrados em abril, agosto ou dezembro. O 3º quadrimestre de 2026 ainda não foi publicado.</p>
+    <p><strong>Tribunais de Contas</strong> vêm dentro do Poder Legislativo na API e aparecem aqui separados pelo nome da instituição.</p>
+    <p><strong>Órgãos que só existem em alguns estados:</strong> Tribunal de Contas dos Municípios (BA, GO, PA), Tribunal de Justiça Militar (MG, RS, SP) e Ministérios Públicos de Contas com relatório próprio dentro do Legislativo (PA). No Distrito Federal, o Tribunal de Justiça e o Ministério Público são mantidos pela União e não entram no RGF do DF.</p>
+    <p><strong>Órgãos sem % declarado</strong> (em geral a Defensoria Pública, sem limite próprio na LRF): o % é calculado como despesa líquida com pessoal dos últimos 12 meses dividida pela RCL Ajustada do Executivo no mesmo período. Esses valores aparecem marcados com <span class="calc-mark">*</span>.</p>
+  </section>
+</main>
+
+<div id="tooltip" class="rgf-tooltip" role="status" hidden></div>
+<script src="data.js"></script>
+<script src="rgf.js"></script>
+</body>
+</html>
