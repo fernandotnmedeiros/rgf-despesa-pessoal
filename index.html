@@ -16,13 +16,26 @@
 <main>
   <section class="controls">
     <div class="field field-grow">
-      <label for="ente">Estado / DF</label>
-      <select id="ente"></select>
+      <span class="field-label" id="ente-label">Estado / DF</span>
+      <div class="combo">
+        <button id="ente-btn" class="combo-btn" type="button" aria-haspopup="listbox" aria-expanded="false"
+                aria-labelledby="ente-label ente-btn-texto">
+          <span id="ente-btn-texto" class="combo-texto">Carregando...</span>
+          <span id="ente-btn-tag"></span>
+          <span class="combo-caret" aria-hidden="true">▾</span>
+        </button>
+        <ul id="ente-lista" class="combo-lista" role="listbox" aria-labelledby="ente-label" tabindex="-1" hidden></ul>
+      </div>
     </div>
     <div class="field field-action">
       <span class="field-label-spacer" aria-hidden="true">&nbsp;</span>
       <a id="exportar" class="btn" href="#" download>Exportar XLSX</a>
     </div>
+    <p class="destaque-legenda">
+      <span>Destaque no seletor pela situação no <span id="destaque-periodo">2º quad. 2026</span>:</span>
+      <span class="tag tag-maximo"><span class="tag-ico" aria-hidden="true">×</span>algum órgão acima do limite máximo</span>
+      <span class="tag tag-alerta"><span class="tag-ico" aria-hidden="true">!</span>algum órgão acima do limite de alerta ou prudencial</span>
+    </p>
   </section>
 
   <section id="aviso" class="rgf-aviso" hidden></section>

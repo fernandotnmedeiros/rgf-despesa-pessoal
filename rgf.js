@@ -1,6 +1,7 @@
 const $ = (id) => document.getElementById(id);
 
-const enteEl = $("ente");
+const comboBtn = $("ente-btn");
+const comboLista = $("ente-lista");
 const exportarEl = $("exportar");
 const avisoEl = $("aviso");
 const resumoEl = $("resumo");
@@ -11,12 +12,16 @@ const tooltipEl = $("tooltip");
 
 const TOTAL_RELATORIOS = 40;
 const SITUACAO = {
-  regular: { ico: "✓", txt: "Abaixo do limite de alerta" },
-  acima_alerta: { ico: "!", txt: "Acima do limite de alerta" },
-  acima_prudencial: { ico: "!", txt: "Acima do limite prudencial" },
-  acima_maximo: { ico: "×", txt: "Acima do limite máximo" },
-  sem_limite: { ico: "–", txt: "Sem limite próprio na LRF" },
-  sem_dado: { ico: "–", txt: "Sem dado no período" },
+  regular: { ico: "✓", txt: "Abaixo do limite de alerta", curto: "Abaixo do alerta" },
+  acima_alerta: { ico: "!", txt: "Acima do limite de alerta", curto: "Acima do alerta" },
+  acima_prudencial: { ico: "!", txt: "Acima do limite prudencial", curto: "Acima do prudencial" },
+  acima_maximo: { ico: "×", txt: "Acima do limite máximo", curto: "Acima do máximo" },
+  sem_limite: { ico: "–", txt: "Sem limite próprio na LRF", curto: "Sem limite próprio" },
+  sem_dado: { ico: "–", txt: "Sem dado no período", curto: "Sem dado" },
+};
+const DESTAQUE = {
+  maximo: { ico: "×", txt: "Acima do máximo" },
+  alerta: { ico: "!", txt: "Acima do alerta" },
 };
 
 const fmtPct = (v) =>
@@ -40,8 +45,10 @@ async function fetchJSON(url) {
 const ESTATICO = window.RGF_DADOS || null;
 
 async function obterEntes() {
-  if (ESTATICO) return ESTATICO.entes.map(({ dados, ...e }) => e);
-  return fetchJSON("/api/rgf/entes");
+  const lista = ESTATICO
+    ? ESTATICO.entes.map(({ dados, ...e }) => e)
+    : await fetchJSON("/api/rgf/entes");
+  return lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }
 
 async function obterDados(cod) {
@@ -61,6 +68,7 @@ function linkExportacao(ente, cod) {
 
 let entes = [];
 let token = 0;
+let codAtual = null;
 
 function lembrar(cod) {
   try { localStorage.setItem("rgf-ente", String(cod)); } catch (e) { /* armazenamento indisponível */ }
@@ -69,13 +77,110 @@ function lembrado() {
   try { return localStorage.getItem("rgf-ente"); } catch (e) { return null; }
 }
 
+// ---------------------------------------------------------------- seletor de estado com destaque
+
+let ativoIdx = -1;
+
+function descricaoDestaque(e) {
+  const partes = [];
+  if (e.acima_maximo && e.acima_maximo.length) partes.push(`Acima do limite máximo: ${e.acima_maximo.join(", ")}`);
+  if (e.acima_alerta && e.acima_alerta.length) partes.push(`Acima do limite de alerta: ${e.acima_alerta.join(", ")}`);
+  return partes.join(". ");
+}
+
+function tagDestaque(nivel) {
+  const d = DESTAQUE[nivel];
+  return d ? `<span class="tag tag-${nivel}"><span class="tag-ico" aria-hidden="true">${d.ico}</span>${d.txt}</span>` : "";
+}
+
+function renderCombo() {
+  comboLista.innerHTML = entes.map((e, i) => {
+    const desc = descricaoDestaque(e);
+    return `<li id="ente-op-${e.cod_ibge}" role="option" class="combo-op${e.alerta ? " hl-" + e.alerta : ""}"
+      data-i="${i}" aria-selected="${String(e.cod_ibge) === String(codAtual)}"${desc ? ` title="${esc(desc)}"` : ""}>
+      <span class="op-nome">${esc(e.nome)} (${e.uf})</span>${tagDestaque(e.alerta)}
+      ${desc ? `<span class="sr-only">. ${esc(desc)}</span>` : ""}
+    </li>`;
+  }).join("");
+  const sel = entes.find((e) => String(e.cod_ibge) === String(codAtual));
+  if (sel) {
+    $("ente-btn-texto").textContent = `${sel.nome} (${sel.uf})`;
+    $("ente-btn-tag").innerHTML = tagDestaque(sel.alerta);
+    comboBtn.className = "combo-btn" + (sel.alerta ? " hl-" + sel.alerta : "");
+    comboBtn.title = descricaoDestaque(sel);
+  }
+}
+
+function marcarAtivo(i) {
+  const ops = comboLista.querySelectorAll(".combo-op");
+  ops.forEach((o) => o.classList.remove("ativo"));
+  if (i < 0 || i >= ops.length) return;
+  ativoIdx = i;
+  ops[i].classList.add("ativo");
+  comboLista.setAttribute("aria-activedescendant", ops[i].id);
+  ops[i].scrollIntoView({ block: "nearest" });
+}
+
+function abrirCombo() {
+  comboLista.hidden = false;
+  comboBtn.setAttribute("aria-expanded", "true");
+  marcarAtivo(Math.max(0, entes.findIndex((e) => String(e.cod_ibge) === String(codAtual))));
+  comboLista.focus();
+}
+
+function fecharCombo(focarBotao = true) {
+  comboLista.hidden = true;
+  comboBtn.setAttribute("aria-expanded", "false");
+  if (focarBotao) comboBtn.focus();
+}
+
+function escolher(i) {
+  const e = entes[i];
+  if (!e) return;
+  fecharCombo();
+  if (String(e.cod_ibge) !== String(codAtual)) {
+    codAtual = String(e.cod_ibge);
+    renderCombo();
+    carregar();
+  }
+}
+
+const semAcento = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+comboBtn.addEventListener("click", () => (comboLista.hidden ? abrirCombo() : fecharCombo()));
+comboBtn.addEventListener("keydown", (ev) => {
+  if (["ArrowDown", "ArrowUp", "Enter", " "].includes(ev.key)) { ev.preventDefault(); abrirCombo(); }
+});
+comboLista.addEventListener("click", (ev) => {
+  const op = ev.target.closest(".combo-op");
+  if (op) escolher(Number(op.dataset.i));
+});
+comboLista.addEventListener("keydown", (ev) => {
+  const n = entes.length;
+  if (ev.key === "ArrowDown") { ev.preventDefault(); marcarAtivo(Math.min(n - 1, ativoIdx + 1)); }
+  else if (ev.key === "ArrowUp") { ev.preventDefault(); marcarAtivo(Math.max(0, ativoIdx - 1)); }
+  else if (ev.key === "Home") { ev.preventDefault(); marcarAtivo(0); }
+  else if (ev.key === "End") { ev.preventDefault(); marcarAtivo(n - 1); }
+  else if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); escolher(ativoIdx); }
+  else if (ev.key === "Escape") { ev.preventDefault(); fecharCombo(); }
+  else if (ev.key === "Tab") { fecharCombo(false); }
+  else if (ev.key.length === 1 && /\S/.test(ev.key)) {
+    const letra = semAcento(ev.key);
+    for (let k = 1; k <= n; k++) {
+      const j = (ativoIdx + k) % n;
+      if (semAcento(entes[j].nome).startsWith(letra)) { marcarAtivo(j); break; }
+    }
+  }
+});
+document.addEventListener("click", (ev) => {
+  if (!comboLista.hidden && !ev.target.closest(".combo")) fecharCombo(false);
+});
+
 async function init() {
   entes = await obterEntes();
-  enteEl.innerHTML = entes
-    .map((e) => `<option value="${e.cod_ibge}">${esc(e.nome)} (${e.uf})</option>`)
-    .join("");
   const salvo = lembrado();
-  enteEl.value = entes.some((e) => String(e.cod_ibge) === salvo) ? salvo : "26";
+  codAtual = entes.some((e) => String(e.cod_ibge) === salvo) ? salvo : "26";
+  renderCombo();
   await carregar();
 }
 
@@ -91,7 +196,7 @@ function mostrarAviso(ente) {
 }
 
 async function carregar() {
-  const cod = enteEl.value;
+  const cod = String(codAtual);
   lembrar(cod);
   const meu = ++token;
   const ente = entes.find((e) => String(e.cod_ibge) === cod);
@@ -115,7 +220,11 @@ async function carregar() {
     return;
   }
   if (meu !== token) return;
+  renderCombo();
   mostrarAviso(entes.find((e) => String(e.cod_ibge) === cod));
+  if (dados.periodos && dados.periodos.length) {
+    $("destaque-periodo").textContent = curto(dados.periodos[dados.periodos.length - 1]);
+  }
 
   if (!dados.orgaos.length) {
     emptyEl.textContent = `Ainda não há relatórios de ${dados.nome} carregados.`;
@@ -144,8 +253,8 @@ function renderTabela(d) {
   const ultimo = d.periodos[d.periodos.length - 1];
   $("tabela-head").innerHTML =
     `<th>Poder / órgão</th>` +
-    d.periodos.map((p) => `<th title="${esc(p.meses)}">${curto(p)}</th>`).join("") +
-    `<th>Limite máximo<br>(${curto(ultimo)})</th><th>Situação<br>(${curto(ultimo)})</th>`;
+    d.periodos.map((p) => `<th title="${esc(p.meses)}">${p.periodo}º q.<br>${p.ano}</th>`).join("") +
+    `<th>Limite máx.<br>(${curto(ultimo)})</th><th>Situação<br>(${curto(ultimo)})</th>`;
 
   $("tabela-body").innerHTML = d.orgaos.map((o) => {
     const cells = o.pontos.map((p) => {
@@ -160,7 +269,7 @@ function renderTabela(d) {
       <td class="org-cell"><span class="org-nome">${esc(o.nome)}</span><span class="org-poder">${esc(o.poder)}</span></td>
       ${cells}
       <td>${ult.lim_max != null ? fmtPct(ult.lim_max) : "—"}</td>
-      <td><span class="chip chip-${ult.situacao}"><span class="chip-ico" aria-hidden="true">${s.ico}</span>${s.txt}</span></td>
+      <td class="sit-cell"><span class="chip chip-${ult.situacao}" title="${esc(s.txt)}"><span class="chip-ico" aria-hidden="true">${s.ico}</span>${s.curto}</span></td>
     </tr>`;
   }).join("");
   tabelaWrapEl.hidden = false;
@@ -297,5 +406,4 @@ function ligarTooltip(d, xs) {
   }
 }
 
-enteEl.addEventListener("change", carregar);
 init();
